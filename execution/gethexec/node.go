@@ -75,7 +75,7 @@ var DefaultStylusTargetConfig = StylusTargetConfig{
 	Arm64:      programs.DefaultTargetDescriptionArm,
 	Amd64:      programs.DefaultTargetDescriptionX86,
 	Host:       "",
-	ExtraArchs: []string{string(rawdb.TargetWavm)},
+	ExtraArchs: []string{string(rawdb.TargetWavm), string(rawdb.TargetWasm)},
 }
 
 func StylusTargetConfigAddOptions(prefix string, f *flag.FlagSet) {
