@@ -162,10 +162,13 @@ func activateProgramInternal(
 	moduleActivationMandatory bool,
 ) (*activationInfo, map[rawdb.WasmTarget][]byte, error) {
 	var wavmFound bool
+	var wasmFound bool
 	var nativeTargets []rawdb.WasmTarget
 	for _, target := range targets {
 		if target == rawdb.TargetWavm {
 			wavmFound = true
+		} else if target == rawdb.TargetWasm {
+			wasmFound = true
 		} else {
 			nativeTargets = append(nativeTargets, target)
 		}
@@ -178,7 +181,10 @@ func activateProgramInternal(
 	results := make(chan result)
 	// info will be set in separate thread, make sure to wait before reading
 	var info *activationInfo
-	asmMap := make(map[rawdb.WasmTarget][]byte, len(nativeTargets)+1)
+	asmMap := make(map[rawdb.WasmTarget][]byte, len(nativeTargets)+2)
+	if wasmFound {
+		asmMap["wasm"] = wasm
+	}
 	if moduleActivationMandatory || wavmFound {
 		go func() {
 			var err error
