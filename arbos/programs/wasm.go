@@ -8,6 +8,7 @@ package programs
 
 import (
 	"errors"
+	"fmt"
 	"unsafe"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -150,6 +151,7 @@ func callProgram(
 ) ([]byte, error) {
 	reqHandler := newApiClosures(interpreter, tracingInfo, scope, memoryModel)
 	gasLeft, retData, err := CallProgramLoop(moduleHash, calldata, scope.Contract.Gas, evmData, params, reqHandler)
+	fmt.Printf("Gas left: %d for module %v\n", gasLeft, moduleHash)
 	scope.Contract.Gas = gasLeft
 	return retData, err
 }
