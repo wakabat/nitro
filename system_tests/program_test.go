@@ -190,13 +190,11 @@ func testActivateTwice(t *testing.T, jit bool, builderOpts ...func(*NodeBuilder)
 	l2client := builder.L2.Client
 	defer cleanup()
 
-	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) *types.Receipt {
 		t.Helper()
 		Require(t, err)
 		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
-		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt
 	}
 
@@ -273,8 +271,6 @@ func testActivateTwice(t *testing.T, jit bool, builderOpts ...func(*NodeBuilder)
 	checkWasmStoreContent(t, wasmDb, builder.execConfig.StylusTarget.WasmTargets(), 2)
 
 	validateBlocks(t, 7, jit, builder)
-
-	recordBlocks(t, builder, blocks)
 }
 
 func TestStylusUpgrade(t *testing.T) {
@@ -1274,8 +1270,6 @@ func testActivateFails(t *testing.T, jit bool) {
 	})
 
 	validateBlockRange(t, []uint64{blockToValidate}, jit, builder)
-
-	recordBlocks(t, builder, []uint64{blockToValidate})
 }
 
 func TestProgramSdkStorage(t *testing.T) {
