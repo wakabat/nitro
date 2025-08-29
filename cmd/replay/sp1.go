@@ -1,7 +1,7 @@
 // Copyright 2021-2022, Offchain Labs, Inc.
 // For license information, see https://github.com/OffchainLabs/nitro/blob/master/LICENSE.md
 //
-//go:build precompiles
+//go:build sp1
 package main
 
 import (
@@ -13,3 +13,6 @@ func gcTweaks() {
 	// We will have to tweak GC parameters in code.
 	debug.SetGCPercent(1023)
 }
+
+//go:wasmimport sp1 dump_elf
+func dumpElf()
