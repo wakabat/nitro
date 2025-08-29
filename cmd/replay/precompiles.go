@@ -13,3 +13,6 @@ func gcTweaks() {
 	// We will have to tweak GC parameters in code.
 	debug.SetGCPercent(1023)
 }
+
+//go:wasmimport precompiles dump_elf
+func dumpElf()
