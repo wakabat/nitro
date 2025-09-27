@@ -116,11 +116,13 @@ func testEvmData(t *testing.T, jit bool) {
 	defer cleanup()
 	evmDataAddr := deployWasm(t, ctx, auth, l2client, rustFile("evm-data"))
 
+	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) *types.Receipt {
 		t.Helper()
 		Require(t, err)
 		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt
 	}
 	burnArbGas, _ := util.NewCallParser(precompilesgen.ArbosTestABI, "burnArbGas")
@@ -207,4 +209,6 @@ func testEvmData(t *testing.T, jit bool) {
 	colors.PrintGrey("trace: ", string(trace))
 
 	validateBlocks(t, 1, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }

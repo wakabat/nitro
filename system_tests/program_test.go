@@ -145,11 +145,13 @@ func keccakTest(t *testing.T, jit bool, builderOpts ...func(*NodeBuilder)) {
 		colors.PrintGrey("keccak(x) = ", hash)
 	})
 
+	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) *types.Receipt {
 		t.Helper()
 		Require(t, err)
 		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt
 	}
 
@@ -160,6 +162,8 @@ func keccakTest(t *testing.T, jit bool, builderOpts ...func(*NodeBuilder)) {
 	ensure(mock.CallKeccak(&auth, otherAddressSameCode, args))
 
 	validateBlocks(t, 1, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramActivateTwice(t *testing.T) {
@@ -281,11 +285,13 @@ func testStylusUpgrade(t *testing.T, jit bool) {
 	l2info := builder.L2Info
 	l2client := builder.L2.Client
 
+	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) *types.Receipt {
 		t.Helper()
 		Require(t, err)
 		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt
 	}
 
@@ -316,7 +322,9 @@ func testStylusUpgrade(t *testing.T, jit bool) {
 		// execute onchain for proving's sake
 		tx := l2info.PrepareTxTo("Owner", &keccakAddr, 1e9, nil, keccakArgs)
 		Require(t, l2client.SendTransaction(ctx, tx))
-		return EnsureTxFailed(t, ctx, l2client, tx).BlockNumber.Uint64()
+		blockNumber := EnsureTxFailed(t, ctx, l2client, tx).BlockNumber.Uint64()
+		blocks = append(blocks, blockNumber)
+		return blockNumber
 	}
 
 	checkSucceeds := func() uint64 {
@@ -336,6 +344,7 @@ func testStylusUpgrade(t *testing.T, jit bool) {
 		if err != nil {
 			Fatal(t, err)
 		}
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt.BlockNumber.Uint64()
 	}
 
@@ -348,7 +357,8 @@ func testStylusUpgrade(t *testing.T, jit bool) {
 
 	tx, err := arbOwner.ScheduleArbOSUpgrade(&auth, 31, 0)
 	Require(t, err)
-	_, err = builder.L2.EnsureTxSucceeded(tx)
+	receipt, err := builder.L2.EnsureTxSucceeded(tx)
+	blocks = append(blocks, receipt.BlockNumber.Uint64())
 	Require(t, err)
 
 	// generate traffic to perform the upgrade
@@ -361,6 +371,8 @@ func testStylusUpgrade(t *testing.T, jit bool) {
 	blockSuccess2 := checkSucceeds()
 
 	validateBlockRange(t, []uint64{blockFail1, blockSuccess1, blockFail2, blockSuccess2}, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramErrors(t *testing.T) {
@@ -377,16 +389,20 @@ func errorTest(t *testing.T, jit bool) {
 	programAddress := deployWasm(t, ctx, auth, l2client, rustFile("fallible"))
 	multiAddr := deployWasm(t, ctx, auth, l2client, rustFile("multicall"))
 
+	var blocks []uint64
+
 	// ensure tx passes
 	tx := l2info.PrepareTxTo("Owner", &programAddress, l2info.TransferGas, nil, []byte{0x01})
 	Require(t, l2client.SendTransaction(ctx, tx))
-	_, err := EnsureTxSucceeded(ctx, l2client, tx)
+	receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
+	blocks = append(blocks, receipt.BlockNumber.Uint64())
 	Require(t, err)
 
 	// ensure tx fails
 	tx = l2info.PrepareTxTo("Owner", &programAddress, l2info.TransferGas, nil, []byte{0x00})
 	Require(t, l2client.SendTransaction(ctx, tx))
-	receipt, err := WaitForTx(ctx, l2client, tx.Hash(), 5*time.Second)
+	receipt, err = WaitForTx(ctx, l2client, tx.Hash(), 5*time.Second)
+	blocks = append(blocks, receipt.BlockNumber.Uint64())
 	Require(t, err)
 	if receipt.Status != types.ReceiptStatusFailed {
 		Fatal(t, "call should have failed")
@@ -399,9 +415,12 @@ func errorTest(t *testing.T, jit bool) {
 	}
 	tx = l2info.PrepareTxTo("Owner", &multiAddr, 1e9, nil, args)
 	Require(t, l2client.SendTransaction(ctx, tx))
-	EnsureTxFailed(t, ctx, l2client, tx)
+	receipt = EnsureTxFailed(t, ctx, l2client, tx)
+	blocks = append(blocks, receipt.BlockNumber.Uint64())
 
 	validateBlocks(t, 7, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramStorage(t *testing.T) {
@@ -435,7 +454,7 @@ func storageTest(t *testing.T, jit bool) {
 
 	// Captures a block_inputs json file for the block that included the
 	// storage write transaction. Include wasm targets necessary for arbitrator prover and jit binaries
-	recordBlock(t, receipt.BlockNumber.Uint64(), builder, rawdb.TargetWavm, rawdb.LocalTarget())
+	recordBlocks(t, builder, []uint64{receipt.BlockNumber.Uint64()})
 }
 
 func TestProgramTransientStorage(t *testing.T) {
@@ -480,7 +499,7 @@ func transientStorageTest(t *testing.T, jit bool) {
 	// do an onchain call
 	tx := l2info.PrepareTxTo("Owner", &multicall, l2info.TransferGas, nil, args)
 	Require(t, l2client.SendTransaction(ctx, tx))
-	_, err := EnsureTxSucceeded(ctx, l2client, tx)
+	receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 	Require(t, err)
 
 	// do an equivalent eth_call
@@ -502,6 +521,8 @@ func transientStorageTest(t *testing.T, jit bool) {
 	}
 
 	validateBlocks(t, 7, jit, builder)
+
+	recordBlocks(t, builder, []uint64{receipt.BlockNumber.Uint64()})
 }
 
 func TestProgramMath(t *testing.T) {
@@ -516,11 +537,13 @@ func fastMathTest(t *testing.T, jit bool) {
 	l2client := builder.L2.Client
 	defer cleanup()
 
+	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) *types.Receipt {
 		t.Helper()
 		Require(t, err)
 		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt
 	}
 
@@ -531,6 +554,8 @@ func fastMathTest(t *testing.T, jit bool) {
 	ensure(mock.MathTest(&auth, program))
 
 	validateBlocks(t, 6, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramCalls(t *testing.T) {
@@ -555,11 +580,13 @@ func testCalls(t *testing.T, jit bool) {
 		t.Fatal("ArbInfo.GetCode returned wrong code")
 	}
 
+	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) *types.Receipt {
 		t.Helper()
 		Require(t, err)
 		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt
 	}
 
@@ -581,7 +608,8 @@ func testCalls(t *testing.T, jit bool) {
 		// execute onchain for proving's sake
 		tx := l2info.PrepareTxTo("Owner", &callsAddr, 1e9, nil, data)
 		Require(t, l2client.SendTransaction(ctx, tx))
-		EnsureTxFailed(t, ctx, l2client, tx)
+		receipt := EnsureTxFailed(t, ctx, l2client, tx)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 	}
 
 	storeAddr := deployWasm(t, ctx, auth, l2client, rustFile("storage"))
@@ -743,8 +771,9 @@ func testCalls(t *testing.T, jit bool) {
 		Fatal(t, balance, value)
 	}
 
-	blocks := []uint64{10}
-	validateBlockRange(t, blocks, jit, builder)
+	validateBlockRange(t, []uint64{10}, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramReturnData(t *testing.T) {
@@ -758,11 +787,13 @@ func testReturnData(t *testing.T, jit bool) {
 	l2client := builder.L2.Client
 	defer cleanup()
 
+	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) {
 		t.Helper()
 		Require(t, err)
-		_, err = EnsureTxSucceeded(ctx, l2client, tx)
+		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 	}
 
 	readReturnDataAddr := deployWasm(t, ctx, auth, l2client, rustFile("read-return-data"))
@@ -797,6 +828,8 @@ func testReturnData(t *testing.T, jit bool) {
 	testReadReturnData(2, 0, 4, 4, 1)
 
 	validateBlocks(t, 11, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramLogs(t *testing.T) {
@@ -839,11 +872,13 @@ func testLogs(t *testing.T, jit, tracing bool) {
 		Require(t, err)
 		return trace.Logs
 	}
+	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) *types.Receipt {
 		t.Helper()
 		Require(t, err)
 		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt
 	}
 	encode := func(topics []common.Hash, data []byte) []byte {
@@ -901,7 +936,7 @@ func testLogs(t *testing.T, jit, tracing bool) {
 	tooMany := encode([]common.Hash{{}, {}, {}, {}, {}}, []byte{})
 	tx := l2info.PrepareTxTo("Owner", &logAddr, 1e9, nil, tooMany)
 	Require(t, l2client.SendTransaction(ctx, tx))
-	EnsureTxFailed(t, ctx, l2client, tx)
+	blocks = append(blocks, EnsureTxFailed(t, ctx, l2client, tx).BlockNumber.Uint64())
 
 	delegate := argsForMulticall(vm.DELEGATECALL, logAddr, nil, []byte{0x00})
 	tx = l2info.PrepareTxTo("Owner", &multiAddr, 1e9, nil, delegate)
@@ -911,6 +946,8 @@ func testLogs(t *testing.T, jit, tracing bool) {
 	}
 
 	validateBlocks(t, 11, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramCreate(t *testing.T) {
@@ -927,11 +964,13 @@ func testCreate(t *testing.T, jit bool) {
 	activateAuth := auth
 	activateAuth.Value = oneEth
 
+	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) *types.Receipt {
 		t.Helper()
 		Require(t, err)
 		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt
 	}
 
@@ -1004,8 +1043,9 @@ func testCreate(t *testing.T, jit bool) {
 	ensure(mock.CheckRevertData(&auth, createAddr, revertArgs, revertData))
 
 	// validate just the opcodes
-	blocks := []uint64{5, 6}
-	validateBlockRange(t, blocks, jit, builder)
+	validateBlockRange(t, []uint64{5, 6}, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramInfiniteLoopShouldCauseErrOutOfGas(t *testing.T) {
@@ -1048,11 +1088,13 @@ func testMemory(t *testing.T, jit bool) {
 	l2client := builder.L2.Client
 	defer cleanup()
 
+	var blocks [] uint64
 	ensure := func(tx *types.Transaction, err error) *types.Receipt {
 		t.Helper()
 		Require(t, err)
 		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 		return receipt
 	}
 
@@ -1087,7 +1129,8 @@ func testMemory(t *testing.T, jit bool) {
 		// execute onchain for proving's sake
 		tx := l2info.PrepareTxTo("Owner", &to, 1e9, value, data)
 		Require(t, l2client.SendTransaction(ctx, tx))
-		EnsureTxFailed(t, ctx, l2client, tx)
+		receipt := EnsureTxFailed(t, ctx, l2client, tx)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 	}
 
 	model := programs.NewMemoryModel(programs.InitialFreePages, programs.InitialPageGas)
@@ -1126,6 +1169,8 @@ func testMemory(t *testing.T, jit bool) {
 	}
 	args = arbmath.ConcatByteSlices([]byte{60}, types.ArbWasmAddress[:], pack(activate(growHugeAddr)))
 	expectFailure(growCallAddr, args, oneEth) // consumes 64, then tries to compile something 120
+	// TODO: activation does not work yet
+	blocks = blocks[:len(blocks)-1]
 
 	// check that activation then succeeds
 	args[0] = 0x00
@@ -1134,6 +1179,8 @@ func testMemory(t *testing.T, jit bool) {
 	if receipt.GasUsedForL2() < 1659168 {
 		Fatal(t, "activation unexpectedly cheap")
 	}
+	// TODO: activation does not work yet
+	blocks = blocks[:len(blocks)-1]
 
 	// check footprint can induce a revert
 	args = arbmath.ConcatByteSlices([]byte{122}, growCallAddr[:], []byte{0}, common.Address{}.Bytes())
@@ -1194,6 +1241,7 @@ func testMemory(t *testing.T, jit bool) {
 	}
 
 	validateBlocks(t, 3, jit, builder)
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramActivateFails(t *testing.T) {
@@ -1483,11 +1531,13 @@ func testEarlyExit(t *testing.T, jit bool) {
 	earlyAddress := deployWasm(t, ctx, auth, l2client, "../arbitrator/stylus/tests/exit-early/exit-early.wat")
 	panicAddress := deployWasm(t, ctx, auth, l2client, "../arbitrator/stylus/tests/exit-early/panic-after-write.wat")
 
+	var blocks []uint64
 	ensure := func(tx *types.Transaction, err error) {
 		t.Helper()
 		Require(t, err)
-		_, err = EnsureTxSucceeded(ctx, l2client, tx)
+		receipt, err := EnsureTxSucceeded(ctx, l2client, tx)
 		Require(t, err)
+		blocks = append(blocks, receipt.BlockNumber.Uint64())
 	}
 
 	_, tx, mock, err := localgen.DeployProgramTest(&auth, l2client)
@@ -1500,6 +1550,8 @@ func testEarlyExit(t *testing.T, jit bool) {
 	ensure(mock.CheckRevertData(&auth, panicAddress, data, []byte{}))
 
 	validateBlocks(t, 8, jit, builder)
+
+	recordBlocks(t, builder, blocks)
 }
 
 func TestProgramCacheManager(t *testing.T) {
