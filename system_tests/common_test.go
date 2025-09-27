@@ -2082,6 +2082,12 @@ func logParser[T any](t *testing.T, source string, name string) func(*types.Log)
 	}
 }
 
+func recordBlocks(t *testing.T, builder *NodeBuilder, blocks []uint64) {
+	for _, block := range blocks {
+		recordBlock(t, block, builder, rawdb.TargetWasm, rawdb.TargetWavm, rawdb.LocalTarget())
+	}
+}
+
 // recordBlock writes a json file with all of the data needed to validate a block.
 //
 // This can be used as an input to the arbitrator prover to validate a block.

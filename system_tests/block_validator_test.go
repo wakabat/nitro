@@ -290,7 +290,7 @@ func TestBlockRecordSimple(t *testing.T) {
 	receipt, err := builder.L2.EnsureTxSucceeded(tx)
 	Require(t, err)
 
-	recordBlock(t, receipt.BlockNumber.Uint64(), builder, rawdb.TargetWavm, rawdb.LocalTarget())
+	recordBlock(t, receipt.BlockNumber.Uint64(), builder, rawdb.TargetWavm, rawdb.TargetWasm, rawdb.LocalTarget())
 	// give the inbox reader a bit of time to pick up the delayed message
 	time.Sleep(time.Millisecond * 100)
 }
