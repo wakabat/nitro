@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 
@@ -170,6 +171,7 @@ func (e *validationEntry) ToInput(stylusArchs []rawdb.WasmTarget) (*validator.Va
 		res.UserWasms[stylusArch] = make(map[common.Hash][]byte)
 	}
 	for hash, asmMap := range e.UserWasms {
+		log.Info("ToInput program module hash:", hash, "keys", maps.Keys(asmMap))
 		for _, stylusArch := range stylusArchs {
 			if asm, exists := asmMap[stylusArch]; exists {
 				res.UserWasms[stylusArch][hash] = asm
