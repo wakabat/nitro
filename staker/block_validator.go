@@ -597,7 +597,7 @@ func (v *BlockValidator) sendRecord(s *validationStatus) error {
 		if len(s.Entry.UserWasms) > 0 {
 			input, err := s.Entry.ToInput([]rawdb.WasmTarget{rawdb.TargetWasm})
 			if err != nil {
-				log.Info("BLOCK_DUMPER: block", input.Id, "has stylus programs, but not wasm source program!")
+				log.Info("BLOCK_DUMPER: block", uint64(s.Entry.Pos), "has stylus programs, but not wasm source program!")
 			} else {
 				jsonInput := server_api.ValidationInputToJson(input)
 				jsonData, err := jsonInput.Marshal()
