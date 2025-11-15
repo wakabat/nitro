@@ -597,22 +597,23 @@ func (v *BlockValidator) sendRecord(s *validationStatus) error {
 		if len(s.Entry.UserWasms) > 0 {
 			input, err := s.Entry.ToInput([]rawdb.WasmTarget{rawdb.TargetWasm})
 			if err != nil {
-				panic(fmt.Sprintf("ToInput err: %v", err))
+				log.Info("BLOCK_DUMPER: block", input.Id, "has stylus programs, but not wasm source program!")
+			} else {
+				jsonInput := server_api.ValidationInputToJson(input)
+				jsonData, err := jsonInput.Marshal()
+				if err != nil {
+					panic(fmt.Sprintf("Marshal err: %v", err))
+				}
+				err = os.WriteFile(
+					fmt.Sprintf("/dumps/block_%d.json", input.Id),
+					jsonData,
+					0644,
+				)
+				if err != nil {
+					panic(fmt.Sprintf("Writing dump file err: %v", err))
+				}
+				log.Info("BLOCK_DUMPER: dumped block", input.Id)
 			}
-			jsonInput := server_api.ValidationInputToJson(input)
-			jsonData, err := jsonInput.Marshal()
-			if err != nil {
-				panic(fmt.Sprintf("Marshal err: %v", err))
-			}
-			err = os.WriteFile(
-				fmt.Sprintf("/dumps/block_%d.json", input.Id),
-				jsonData,
-				0644,
-			)
-			if err != nil {
-				panic(fmt.Sprintf("Writing dump file err: %v", err))
-			}
-			log.Info("DUMPING_STYLUS_PROGRAM block", input.Id)
 		}
 		validatorProfileRecordingHist.Update(s.profileStep())
 		if !s.replaceStatus(RecordSent, Prepared) {
