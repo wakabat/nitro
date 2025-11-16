@@ -351,7 +351,18 @@ func callProgram(
 	if runCtx.IsRecording() {
 		if stateDb, ok := db.(*state.StateDB); ok {
 			// Always load wasm for recorded blocks
-			wasm, _ := getWasm(stateDb, address, 0xFFFFFFFF)
+			var wasm []byte
+			prefixedWasm := stateDb.GetCode(address)
+			if prefixedWasm != nil {
+				parsedWasm, err := getWasmFromContractCode(prefixedWasm, 0xFFFFFFFF)
+				if err == nil {
+					wasm = parsedWasm
+				} else {
+					log.Info("BLOCK_DUMPER: parsing code for wasm fails", "error", err)
+				}
+			} else {
+				log.Info("BLOCK_DUMPER: fetching code returns nil", "address", address)
+			}
 			if err := stateDb.RecordProgram(runCtx.WasmTargets(), moduleHash, wasm); err != nil {
 				log.Error("failed to record program", "program", address, "module", moduleHash, "err", err)
 				panic(fmt.Sprintf("failed to record program: %v", err))
