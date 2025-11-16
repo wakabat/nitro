@@ -597,7 +597,7 @@ func (v *BlockValidator) sendRecord(s *validationStatus) error {
 		if len(s.Entry.UserWasms) > 0 {
 			input, err := s.Entry.ToInput([]rawdb.WasmTarget{rawdb.TargetWasm})
 			if err != nil {
-				log.Info("BLOCK_DUMPER: block", uint64(s.Entry.Pos), "has stylus programs, but not wasm source program!")
+				log.Info("BLOCK_DUMPER: block has stylus but not wasm source", "block", uint64(s.Entry.Pos))
 			} else {
 				jsonInput := server_api.ValidationInputToJson(input)
 				jsonData, err := jsonInput.Marshal()
@@ -612,7 +612,7 @@ func (v *BlockValidator) sendRecord(s *validationStatus) error {
 				if err != nil {
 					panic(fmt.Sprintf("Writing dump file err: %v", err))
 				}
-				log.Info("BLOCK_DUMPER: dumped block", input.Id)
+				log.Info("BLOCK_DUMPER: dumped block", "block", input.Id)
 			}
 		}
 		validatorProfileRecordingHist.Update(s.profileStep())
