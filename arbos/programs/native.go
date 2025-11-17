@@ -358,7 +358,7 @@ func callProgram(
 				if err == nil {
 					wasm = parsedWasm
 				} else {
-					log.Info("BLOCK_DUMPER: parsing code for wasm fails", "error", err)
+					log.Info("BLOCK_DUMPER: parsing code for wasm fails", "address", address, "error", err)
 				}
 			} else {
 				log.Info("BLOCK_DUMPER: fetching code returns nil", "address", address)
