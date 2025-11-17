@@ -358,10 +358,10 @@ func callProgram(
 				if err == nil {
 					wasm = parsedWasm
 				} else {
-					log.Info("BLOCK_DUMPER: parsing code for wasm fails", "address", address, "error", err)
+					log.Info("BLOCK_DUMPER: parsing code for wasm fails", "address", address, "module hash", moduleHash, "error", err)
 				}
 			} else {
-				log.Info("BLOCK_DUMPER: fetching code returns nil", "address", address)
+				log.Info("BLOCK_DUMPER: fetching code returns nil", "address", address, "module hash", moduleHash)
 			}
 			if err := stateDb.RecordProgram(runCtx.WasmTargets(), moduleHash, wasm); err != nil {
 				log.Error("failed to record program", "program", address, "module", moduleHash, "err", err)
