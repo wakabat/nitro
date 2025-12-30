@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -380,6 +381,12 @@ func (v *StatelessBlockValidator) ValidationEntryRecord(ctx context.Context, e *
 		if len(wasmTargets) == 0 {
 			wasmTargets = v.wasmTargets
 		}
+
+		// Ensure that wasm targets are generated for validated blocks
+		if !slices.Contains(wasmTargets, rawdb.TargetWasm) {
+			wasmTargets = append(wasmTargets, rawdb.TargetWasm)
+		}
+
 		recording, err := v.recorder.RecordBlockCreation(ctx, e.Pos, e.msg, wasmTargets)
 		if err != nil {
 			return err

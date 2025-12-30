@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"regexp"
 	"sync"
 	"sync/atomic"
@@ -18,6 +19,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -34,6 +36,7 @@ import (
 	"github.com/offchainlabs/nitro/validator/client/redis"
 	"github.com/offchainlabs/nitro/validator/inputs"
 	"github.com/offchainlabs/nitro/validator/retry_wrapper"
+	"github.com/offchainlabs/nitro/validator/server_api"
 )
 
 var (
@@ -590,6 +593,33 @@ func (v *BlockValidator) sendRecord(s *validationStatus) error {
 			log.Error("Error while recording", "err", err, "status", s.getStatus())
 			return
 		}
+
+		// Dump blocks with stylus programs
+		if len(s.Entry.UserWasms) > 0 {
+			input, err := s.Entry.ToInput([]rawdb.WasmTarget{rawdb.TargetWasm})
+			if err != nil {
+				panic(fmt.Sprintf("ToInput err: %v", err))
+			}
+			jsonInput := server_api.ValidationInputToJson(input)
+			jsonData, err := jsonInput.Marshal()
+			if err != nil {
+				panic(fmt.Sprintf("Marshal err: %v", err))
+			}
+			err = os.MkdirAll("/tmp/dumps", os.ModePerm)
+			if err != nil {
+				panic(fmt.Sprintf("Creating dumps dir err: %v", err))
+			}
+			err = os.WriteFile(
+				fmt.Sprintf("/tmp/dumps/block_%d.json", input.Id),
+				jsonData,
+				0644,
+			)
+			if err != nil {
+				panic(fmt.Sprintf("Writing dump file err: %v", err))
+			}
+			log.Info("DUMPING_STYLUS_PROGRAM block", input.Id)
+		}
+
 		validatorProfileRecordingHist.Update(s.profileStep())
 		if !s.replaceStatus(RecordSent, Prepared) {
 			log.Error("Fault trying to update validation with recording", "entry", s.Entry, "status", s.getStatus())
