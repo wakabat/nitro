@@ -329,7 +329,7 @@ func getCompiledProgram(statedb vm.StateDB, moduleHash common.Hash, addressForLo
 func callProgram(
 	address common.Address,
 	moduleHash common.Hash,
-	localAsm []byte,
+	asmMap map[rawdb.WasmTarget][]byte,
 	scope *vm.ScopeContext,
 	evm *vm.EVM,
 	tracingInfo *util.TracingInfo,
@@ -342,6 +342,8 @@ func callProgram(
 	db := evm.StateDB
 	debug := stylusParams.DebugMode
 
+	localAsm := asmMap[rawdb.LocalTarget()]
+
 	if len(localAsm) == 0 {
 		log.Error("missing asm", "program", address, "module", moduleHash)
 		panic("missing asm")
@@ -349,7 +351,7 @@ func callProgram(
 
 	if runCtx.IsRecording() {
 		if stateDb, ok := db.(*state.StateDB); ok {
-			if err := stateDb.RecordProgram(runCtx.WasmTargets(), moduleHash); err != nil {
+			if err := stateDb.RecordProgram(asmMap, moduleHash); err != nil {
 				log.Error("failed to record program", "program", address, "module", moduleHash, "err", err)
 				panic(fmt.Sprintf("failed to record program: %v", err))
 			}

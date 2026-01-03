@@ -144,7 +144,7 @@ func getCompiledProgram(statedb vm.StateDB, moduleHash common.Hash, addressForLo
 func callProgram(
 	address common.Address,
 	moduleHash common.Hash,
-	_localAsm []byte,
+	_asmMap map[rawdb.WasmTarget][]byte,
 	scope *vm.ScopeContext,
 	evm *vm.EVM,
 	tracingInfo *util.TracingInfo,

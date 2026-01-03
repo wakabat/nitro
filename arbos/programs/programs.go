@@ -222,9 +222,8 @@ func (p Programs) CallProgram(
 
 	asmMap, err := getCompiledProgram(statedb, moduleHash, contract.Address(), contract.Code, contract.CodeHash, params.MaxWasmSize, params.PageLimit, evm.Context.Time, debugMode, program, runCtx)
 	var ok bool
-	var localAsm []byte
 	if asmMap != nil {
-		localAsm, ok = asmMap[rawdb.LocalTarget()]
+		_, ok = asmMap[rawdb.LocalTarget()]
 	}
 	if err != nil || !ok {
 		panic(fmt.Sprintf("failed to get compiled program for activated program, program: %v, local target missing: %v, err: %v", contract.Address().Hex(), !ok, err))
@@ -251,7 +250,7 @@ func (p Programs) CallProgram(
 
 	address := contract.Address()
 	metrics.GetOrRegisterCounter(fmt.Sprintf("arb/arbos/stylus/program_calls/%s", runCtx.RunModeMetricName()), nil).Inc(1)
-	ret, err := callProgram(address, moduleHash, localAsm, scope, evm, tracingInfo, calldata, evmData, goParams, model, runCtx)
+	ret, err := callProgram(address, moduleHash, asmMap, scope, evm, tracingInfo, calldata, evmData, goParams, model, runCtx)
 	if len(ret) > 0 && p.ArbosVersion >= gethParams.ArbosVersion_StylusFixes {
 		// Ensure that return data costs as least as much as it would in the EVM.
 		evmCost := evmMemoryCost(uint64(len(ret)))
