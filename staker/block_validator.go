@@ -596,7 +596,7 @@ func (v *BlockValidator) sendRecord(s *validationStatus) error {
 
 		// Dump blocks with stylus programs
 		if len(s.Entry.UserWasms) > 0 {
-			input, err := s.Entry.ToInput([]rawdb.WasmTarget{rawdb.TargetWasm})
+			input, err := s.Entry.ToInput([]rawdb.WasmTarget{rawdb.TargetWasm, rawdb.LocalTarget()})
 			if err != nil {
 				panic(fmt.Sprintf("ToInput err: %v", err))
 			}
